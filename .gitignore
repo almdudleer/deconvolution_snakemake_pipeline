@@ -1,0 +1,8 @@
+out/
+datasets/
+.idea/
+.snakemake/
+*.nb.html
+.Rhistory
+*.Rproj.user
+*.Rproj

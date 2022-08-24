@@ -1,0 +1,111 @@
+---
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+params:
+   rmd: "prepareReport.Rmd"
+output:
+  html_document:
+  highlight: tango
+  number_sections: no
+  theme: default
+  toc: yes
+  toc_depth: 3
+  toc_float:
+    collapsed: no
+    smooth_scroll: yes
+---
+```{r, echo=FALSE}
+library(data.table)
+library(dplyr)
+load(snakemake@input[[6]])
+
+before_genes <- nrow(metadata_$raw_dataset)
+before_samples <- ncol(metadata_$raw_dataset)
+after_genes <- nrow(metadata_$filtered_dataset)
+after_samples <- ncol(metadata_$filtered_dataset)
+
+topMadPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'topMAD.png')
+madMedPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'mad-med.png')
+svdBeforePng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'svdBefore.png')
+distancesBeforePng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'distancesBefore.png')
+svdAfterPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'svdAfter.png')
+distancesAfterPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'distancesAfter.png')
+```
+
+## Dataset: `r snakemake@config[['dataset']]`
+## Cell types: `r snakemake@config[['cell_types']]`
+## Run Id: `r snakemake@params[['run_id']]`
+
+## Parameters
+analysis_name: `r snakemake@config[['analysis_name']]`<br>
+num_inits: `r snakemake@config[['num_inits']]`<br>
+top_mad: `r snakemake@config[['top_mad']]`<br>
+min_mad: `r snakemake@config[['min_mad']]`<br>
+min_median: `r snakemake@config[['min_median']]`<br>
+filter_genes: `r snakemake@config[['filter_genes']]`<br>
+filter_samples: `r snakemake@config[['filter_samples']]`<br>
+scale_iterations: `r snakemake@config[['scale_iterations']]`<br>
+init_strategy: `r snakemake@config[['init_strategy']]`<br>
+
+### Blocks
+```{r, echo=FALSE}
+knitr::kable(as.data.frame(fread(snakemake@config[['blocks_pipeline']])))
+```
+
+## Preprocessing
+Number of genes (before filtering, only with MAD>0): `r before_genes`<br>
+Number of samples (before filtering): `r before_samples`<br>
+
+<h3>MAD distribution</h3>
+<img src="`r base64enc::dataURI(file = topMadPng, mime = 'image/png', encoding = 'base64')`"></img>
+<h3>MAD vs Median expression</h3>
+<img src="`r base64enc::dataURI(file = madMedPng, mime = 'image/png', encoding = 'base64')`"></img>
+<h3>SVD (before filtering)</h3>
+<img src="`r base64enc::dataURI(file = svdBeforePng, mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Distances (before filtering)</h3>
+<img src="`r base64enc::dataURI(file = distancesBeforePng, mime = 'image/png', encoding = 'base64')`"></img>
+<h3>SVD (after filtering)</h3>
+<img src="`r base64enc::dataURI(file = svdAfterPng, mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Distances (after filtering)</h3>
+<img src="`r base64enc::dataURI(file = distancesAfterPng, mime = 'image/png', encoding = 'base64')`"></img>
+
+Number of genes (after filtering): `r after_genes`<br>
+Number of samples (after filtering): `r after_samples`<br>
+
+## Results
+```{r, echo=FALSE}
+knitr::kable(as.data.frame(fread(snakemake@input[[1]],sep="\t")))
+```
+## UMAP
+<img src="`r base64enc::dataURI(file = snakemake@input[[9]], mime = 'image/png', encoding = 'base64')`"></img>
+
+## Best initialization
+<h3>Trajectory plot</h3>
+<img src="`r base64enc::dataURI(file = snakemake@input[[2]], mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Number of negative proportions</h3>
+<img src="`r base64enc::dataURI(file = snakemake@input[[4]], mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Number of negative elements in basis</h3>
+<img src="`r base64enc::dataURI(file = snakemake@input[[3]], mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Sum-to-one constraint</h3>
+<img src="`r base64enc::dataURI(file = snakemake@input[[5]], mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Proportions</h3>
+<img src="`r base64enc::dataURI(file = snakemake@input[[10]], mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Markers</h3>
+```{r, echo=FALSE}
+  top_genes  <- 20
+  cell_types <- metadata_$cell_types
+  basis_ <- data.frame(fread(snakemake@input[[8]])) %>%
+    dplyr::rename(gene = "V1")
+  basis_ <- basis_[-1,]
+  genesList <- data.frame(genes=rep(" ",cell_types))
+  rownames(genesList) <- paste0("Cell_type_",1:cell_types)
+  
+  for (ct in 1:cell_types) {
+    row_name <- paste0("Cell_type_",ct)
+    genes <- (basis_ %>% arrange(desc(.data[[row_name]])))[1:top_genes,"gene"]
+    genesList[row_name,"genes"] <- paste0(genes,collapse = " ")
+  }
+  knitr::kable(genesList)
+```
+
+<a href="`r base64enc::dataURI(file = snakemake@input[[7]], mime = 'text', encoding = 'base64')`">Download proportions</a><br>
+<a href="`r base64enc::dataURI(file = snakemake@input[[8]], mime = 'text', encoding = 'base64')`">Download basis</a><br>
