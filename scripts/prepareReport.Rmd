@@ -31,6 +31,10 @@ svdAfterPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess
 distancesAfterPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'distancesAfter.png')
 ```
 
+---
+pagetitle: "`r snakemake@config[['cell_types']]`CT `r snakemake@config[['analysis_name']]`"
+---
+
 ## Dataset: `r snakemake@config[['dataset']]`
 ## Cell types: `r snakemake@config[['cell_types']]`
 ## Run Id: `r snakemake@params[['run_id']]`

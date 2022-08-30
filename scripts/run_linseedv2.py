@@ -58,7 +58,9 @@ reports_path.mkdir(parents=True, exist_ok=True)
 
 processes = []
 with open(reports_path / f"{DT_STAMP}.html", "w+") as report:
-    report.writelines("<html>\n<body>")
+    report.writelines("<html>")
+    report.writelines(f"<head><title>{options.analysis_name}</title></head>")
+    report.writelines("<body>")
     report.writelines(f"Dataset: {options.dataset}<br>")
     report.writelines(f"Analysis: {options.analysis_name}<br>")
     report.writelines(f"Report ID: {DT_STAMP}<br><br>")
