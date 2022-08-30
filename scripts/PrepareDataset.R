@@ -75,7 +75,7 @@ if (!is.null(snakemake@config[["top_mad"]])) {
   }
   print(min_mad)
   print(min_median)
-  top_genes1 <- names(tmp_snk$genes_mad[tmp_snk$genes_mad >= min_mad])
+  top_genes1 <- names(tmp_snk$genes_mad[tmp_snk$genes_mad > min_mad])
   top_genes2 <- names(tmp_snk$genes_median[tmp_snk$genes_median >= min_median])
   top_genes <- intersect(top_genes1, top_genes2)
   png(snakemake@output[["top_mad"]])
