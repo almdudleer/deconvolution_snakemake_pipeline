@@ -1,4 +1,6 @@
 library(Rcpp)
+options(rcpp.cache.dir = snakemake@config[["rcpp_cache_dir"]])
+
 source("scripts/LinseedMetadata.R")
 source("scripts/SinkhornNNLSLinseedC.R")
 sourceCpp("scripts/pipeline.cpp")

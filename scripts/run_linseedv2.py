@@ -71,6 +71,7 @@ with open(reports_path / f"{DT_STAMP}.html", "w+") as report:
         dirs_symlinks = {
             WORK_DIR / "resources": None,
             WORK_DIR / "config": None,
+            WORK_DIR / "rcpp_cache": None,
             Path(options.data_path): (WORK_DIR / "resources" / "datasets"),
             Path(options.inits_path): (WORK_DIR / "resources" / "inits"),
             Path(options.results_path, f"ct{ct}"): (WORK_DIR / "results"),
@@ -102,7 +103,8 @@ with open(reports_path / f"{DT_STAMP}.html", "w+") as report:
                 "nodes": -1,
                 "docker": "dockerreg01.accounts.ad.wustl.edu/artyomov_lab/docker_linseed_snakemake:cpp",
             },
-            "out_dir": str(WORK_DIR.absolute())
+            "out_dir": str(WORK_DIR.absolute()),
+            "rcpp_cache_dir": str((WORK_DIR / "rcpp_cache").absolute())
         }
         if options.top_mad is not None:
             config_dict["top_mad"] = options.top_mad
@@ -125,7 +127,7 @@ with open(reports_path / f"{DT_STAMP}.html", "w+") as report:
                 "--configfile",
                 str(config_path.absolute()),
             ]
-            print(cmd)
+            print(' '.join(cmd))
             p = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
         else:
             snk_cmd = """snakemake --profile lsf_demo --local-cores $L_CORES --jobs 50 \\
