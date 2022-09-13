@@ -1,10 +1,14 @@
 library(ggplot2)
 library(gridExtra)
 
-plotKNNCutoffGenes <- function(genes_nn_dist, threshold) {
-  toPlot <- as.data.frame(genes_nn_dist)
-  toPlot$idx <- seq_len(nrow(toPlot))
-  ggplot(toPlot, aes(x = idx, y = genes_nn_dist)) + geom_line() + geom_hline(yintercept = threshold, colour = "red")
+plotKNNCutoffGenes <- function(genes_dist_df, threshold) {
+  ggplot(
+    genes_dist_df[order(genes_dist_df$genes_nn_dist),],
+    aes(
+      x = seq_len(nrow(genes_dist_df)),
+      y = genes_nn_dist
+    )
+  ) + geom_line() + geom_hline(yintercept = threshold, colour = "red")
 }
 
 plotTopMADGenes <- function(metadata_, top_genes) {
@@ -136,4 +140,18 @@ plotSVDMerged <- function(metadata_, svd_before_f, components = 50) {
           axis.line.y = element_line(colour = 'black', size = 0.5, linetype = 'solid')) +
     scale_x_continuous(minor_breaks = 1:components,
                        limits = c(0, components))
+}
+
+plotDistancesToZero <- function(genes_dist_df) {
+  plot1 <- ggplot(
+    genes_dist_df,
+    aes(x = genes_zero_dist, fill = hk_cc)
+  ) + geom_histogram(bins = 300) + ggtitle("Genes zero dist all")
+
+  plot2 <- ggplot(
+    genes_dist_df[order(genes_dist_df$hk_cc),],
+    aes(x = genes_nn_dist, y = genes_zero_dist, col = hk_cc)
+  ) + geom_point(size = 0.1) + ggtitle("Genes zero dist vs knn dist")
+
+  grid.arrange(plot1, plot2, ncol = 1)
 }

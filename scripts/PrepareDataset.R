@@ -39,7 +39,9 @@ get_normalized_svd_projections <- function(
     colnames(projOmega) <- paste0("dim_", dims)
     projX <- as.data.frame(V_row_flt %*% t(R))[, seq_len(length(dims))]
     colnames(projX) <- paste0("dim_", dims)
-    list(projX, projOmega)
+    # X — genes x dimensions
+    # Omega — samples x dimensions
+    list(projX=projX, projOmega=projOmega)
 }
 
 calculate_knn_cutoff <- function(self, k_neighbours = 20, svd_dims = NULL) {
@@ -48,7 +50,21 @@ calculate_knn_cutoff <- function(self, k_neighbours = 20, svd_dims = NULL) {
   } else {
       genes <- get_normalized_svd_projections(self, seq_len(svd_dims))[[1]]
   }
-  sort(dbscan::kNNdist(genes, k = k_neighbours))
+  dbscan::kNNdist(genes, k = k_neighbours)
+}
+
+get_genes_dist_df <- function(self) {
+  cell_types <- self$cell_types
+  svd_dims <- NULL
+  if (ncol(self$V_row) > 100) {
+    svd_dims <- 100
+  }
+  genes_nn_dist <- calculate_knn_cutoff(self, 20, svd_dims)
+  projected_genes <- get_normalized_svd_projections(self, 1:cell_types)$projX[,2:cell_types]
+  genes_zero_dist <- sqrt(rowSums(projected_genes^2))
+  genes_dist_df <- as.data.frame(list(genes_zero_dist = genes_zero_dist, genes_nn_dist = genes_nn_dist[names(genes_zero_dist)]))
+  genes_dist_df$hk_cc <- rownames(genes_dist_df) %in% readRDS(snakemake@input[["hk_cc_genes"]])
+  genes_dist_df
 }
 
 data_ <- readRDS(snakemake@params[["dataset"]])
@@ -58,7 +74,7 @@ tmp_snk <- SinkhornNNLSLinseed$new(dataset = snakemake@config[["dataset"]],
                                    data = data_,
                                    analysis_name = snakemake@config[["analysis_name"]],
                                    cell_types = snakemake@config[["cell_types"]])
-print(tmp_snk$cell_types)
+
 if (!is.null(snakemake@config[["top_mad"]])) {
   mad_limit <- min(tmp_snk$M, snakemake@config[["top_mad"]])
   top_genes <- names(sort(tmp_snk$genes_mad, decreasing = T)[1:mad_limit])
@@ -97,34 +113,31 @@ if (!is.null(snakemake@config[["top_mad"]])) {
 cat(paste0("Genes: ", tmp_snk$M), paste0("Samples: ", tmp_snk$N),
     file = snakemake@output[["metadata"]], sep = "\n")
 tmp_snk$scaleDataset(snakemake@config[["scale_iterations"]])
+
+genes_dist_df <- get_genes_dist_df(tmp_snk)
+png(snakemake@output[["distances_to_zero_before"]])
+plotDistancesToZero(genes_dist_df)
+dev.off()
+
 png(snakemake@output[["svd_before"]])
 plotSVD(tmp_snk, snakemake@output[["svd_before_plot"]])
 dev.off()
 
 if (snakemake@config[["knn_filter"]]) {
-  genes_nn_dist <- calculate_knn_cutoff(
-    tmp_snk,
-    20,
-    NULL
-  )
   keep_n_genes <- tmp_snk$M - snakemake@config[["filter_genes"]]
   print("KEEP_N_GENES:")
   print(keep_n_genes)
   stopifnot(keep_n_genes > 0)
-  threshold <- genes_nn_dist[keep_n_genes]
+  threshold <- sort(genes_dist_df$genes_nn_dist)[keep_n_genes]
   png(snakemake@output[["distance_before"]])
-  print(plotKNNCutoffGenes(genes_nn_dist, threshold))
+  print(plotKNNCutoffGenes(genes_dist_df, threshold))
   dev.off()
-  keep_genes <- names(genes_nn_dist[genes_nn_dist < threshold])
+  keep_genes <- rownames(genes_dist_df[genes_dist_df$genes_nn_dist < threshold,])
   tmp_snk$filterGenes(keep_genes)
   tmp_snk$calculateDistances()
-  genes_nn_dist_after <- calculate_knn_cutoff(
-    tmp_snk,
-    20,
-    NULL
-  )
+  genes_dist_df <- get_genes_dist_df(tmp_snk)
   png(snakemake@output[["distance_after"]])
-  print(plotKNNCutoffGenes(genes_nn_dist_after, 0))
+  print(plotKNNCutoffGenes(genes_dist_df, 0))
   dev.off()
 } else {
   tmp_snk$getSvdProjectionsNew()
@@ -136,6 +149,7 @@ if (snakemake@config[["knn_filter"]]) {
                            filter_samples = snakemake@config[["filter_samples"]],
                            iterations = snakemake@config[["scale_iterations"]])
   tmp_snk$calculateDistances()
+  genes_dist_df <- get_genes_dist_df(tmp_snk)
   png(snakemake@output[["distance_after"]])
   plotDistances(tmp_snk, 0, 0)
   dev.off()
@@ -144,4 +158,9 @@ if (snakemake@config[["knn_filter"]]) {
 png(snakemake@output[["svd_after"]])
 plotSVDMerged(tmp_snk, snakemake@output[["svd_before_plot"]])
 dev.off()
+
+png(snakemake@output[["distances_to_zero_after"]])
+plotDistancesToZero(genes_dist_df)
+dev.off()
+
 saveRDS(tmp_snk, file = snakemake@output[[1]])

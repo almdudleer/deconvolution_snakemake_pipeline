@@ -174,7 +174,9 @@ rule prepare_report:
                 OUT_DIR + "/results/{run_id}/best/basis_column.tsv",
                 OUT_DIR + "/results/{run_id}/plots/UMAP.png",
                 OUT_DIR + "/results/{run_id}/best/abundance.png"],
-            run_id=DT_STAMP)
+            run_id=DT_STAMP),
+        OUT_DIR + "/resources/preprocess/distances_to_zero_before.png",
+        OUT_DIR+ "/resources/preprocess/distances_to_zero_after.png"
     params:
         run_id=DT_STAMP
     threads: config['count']['threads']

@@ -29,6 +29,8 @@ svdBeforePng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preproces
 distancesBeforePng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'distancesBefore.png')
 svdAfterPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'svdAfter.png')
 distancesAfterPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'distancesAfter.png')
+distancesToZeroBeforePng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'distances_to_zero_before.png')
+distancesToZeroAfterPng <- file.path(snakemake@config[["out_dir"]], 'resources', 'preprocess', 'distances_to_zero_after.png')
 ```
 
 ---
@@ -65,6 +67,10 @@ Number of samples (before filtering): `r before_samples`<br>
 <img src="`r base64enc::dataURI(file = madMedPng, mime = 'image/png', encoding = 'base64')`"></img>
 <h3>SVD (before filtering)</h3>
 <img src="`r base64enc::dataURI(file = svdBeforePng, mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Distances to zero (before filtering)</h3>
+<img src="`r base64enc::dataURI(file = distancesToZeroBeforePng, mime = 'image/png', encoding = 'base64')`"></img>
+<h3>Distances to zero (after filtering)</h3>
+<img src="`r base64enc::dataURI(file = distancesToZeroAfterPng, mime = 'image/png', encoding = 'base64')`"></img>
 <h3>Distances (before filtering)</h3>
 <img src="`r base64enc::dataURI(file = distancesBeforePng, mime = 'image/png', encoding = 'base64')`"></img>
 <h3>SVD (after filtering)</h3>
