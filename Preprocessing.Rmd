@@ -1,0 +1,298 @@
+---
+title: "Test filtering on Simulations"
+output: html_notebook
+---
+
+
+```{r}
+library(Rcpp)
+library(ggplot2)
+library(gridExtra)
+
+sourceCpp("scripts/pipeline.cpp")
+source("scripts/SinkhornNNLSLinseedC.R")
+source("scripts/OutputPlots.R")
+source("scripts/preprocessing_utils.R")
+source("scripts/simulation.R")
+source("scripts/linseed_2_utils.R")
+```
+
+```{r}
+preprocessing_cell_types <- 3
+dataset_name <- "SIM"
+color_plots_by <- "mad_gt_2"
+```
+
+# 0. Load data
+```{r}
+data <- readRDS(paste0("datasets/", dataset_name, ".rds"))
+```
+
+# 1. Annotate data
+```{r}
+gene_annotations <- createGeneAnnotations(data, TRUE)
+sample_annotations <- data.frame(sample_name = colnames(data))
+```
+
+# 2. Mad histograms
+```{r}
+filter_str <- function(data, expr, ...) {
+  filter(data, eval(rlang::parse_expr(expr)), ...)
+}
+flt <- "CODING & !RPLS & mad_gt_0"
+```
+
+```{r}
+plotMadHistograms <- function(gene_annotations) {
+  plt1 <- ggplot(gene_annotations, aes(x = log2(mad + 1), color = mad_gt_0)) +
+    geom_histogram(bins = 100, fill = 'white') +
+    theme_minimal()
+  
+  plt2 <- gene_annotations %>%
+    filter_str(flt) %>%
+    ggplot(aes(x = log2(mad + 1), color = as.factor(mad_gt_1 + mad_gt_2))) +
+      geom_histogram(bins = 100, fill = 'white') +
+      theme_minimal()
+  
+  grid.arrange(plt1, plt2)
+}
+```
+
+```{r}
+plotMadHistograms(gene_annotations)
+```
+
+# 3. Remove unwanted genes
+
+Filtering condition:
+```{r}
+flt
+```
+
+```{r}
+gene_annotations_3 <- gene_annotations %>% filter_str(flt)
+data_3 <- data[gene_annotations_3$gene_name,]
+print(nrow(data))
+print(nrow(data_3))
+```
+
+
+# 4. Genes KNN and d_00 plots
+```{r}
+tmp <- calculate_distances(data_3, gene_annotations_3, sample_annotations, dataset_name, preprocessing_cell_types, NULL)
+gene_annotations_4 <- tmp$gene_annotations
+sample_annotations_4 <- tmp$sample_annotations
+```
+
+### Genes
+```{r}
+plotDistancesToZero(gene_annotations_4, color_plots_by, bins = 50)
+```
+
+### Samples
+```{r}
+plotDistancesToZero(sample_annotations_4, NULL, bins = 50)
+```
+
+# 5. Filter genes by KNN
+```{r}
+genes_knn_distance_cutoff = 0.25
+plotDistancesToZero(gene_annotations_4, color_plots_by, knnd_thresholds = genes_knn_distance_cutoff, bins = 50)
+```
+
+```{r}
+tmp <- knn_cutoff(data_3, gene_annotations_4, genes_knn_distance_cutoff)
+data_5 <- tmp$data
+gene_annotations_5 <- tmp$annotations
+
+print(nrow(gene_annotations_4))
+print(nrow(gene_annotations_5))
+```
+
+```{r}
+tmp <- calculate_distances(data_5, gene_annotations_5, sample_annotations_4, dataset_name, preprocessing_cell_types, svd_dims = NULL)
+gene_annotations_5 <- tmp$gene_annotations
+sample_annotations_5 <- tmp$sample_annotations
+```
+
+```{r}
+plotDistancesToZero(gene_annotations_5, color_plots_by, knnd_thresholds = genes_knn_distance_cutoff, bins=50)
+```
+
+```{r}
+plotDistancesToZero(sample_annotations_5, NULL, bins = 50)
+```
+
+# 6. Filter samples by KNN
+```{r}
+samples_knn_distance_cutoff = 0.685
+plotDistancesToZero(sample_annotations_5, NULL, knnd_thresholds = samples_knn_distance_cutoff, bins = 50)
+```
+
+```{r}
+tmp <- knn_cutoff(data_5, sample_annotations_5, samples_knn_distance_cutoff, samples = T)
+data_6 <- tmp$data
+sample_annotations_6 <- tmp$annotations
+
+print(nrow(sample_annotations_5))
+print(nrow(sample_annotations_6))
+```
+
+
+```{r}
+tmp <- calculate_distances(data_6, gene_annotations_5, sample_annotations_6, dataset_name, preprocessing_cell_types, svd_dims = NULL)
+gene_annotations_6 <- tmp$gene_annotations
+sample_annotations_6 <- tmp$sample_annotations
+```
+
+```{r}
+plotDistancesToZero(gene_annotations_6, color_plots_by, bins = 50)
+```
+
+```{r}
+plotDistancesToZero(sample_annotations_6, NULL, knnd_thresholds = samples_knn_distance_cutoff, bins = 50)
+```
+
+# 7. Filter genes by distance to zero
+```{r}
+genes_zero_distance_cutoff = 0.003
+plotDistancesToZero(gene_annotations_6, color_plots_by, zd_thresholds = genes_zero_distance_cutoff, bins = 50)
+```
+
+```{r}
+sample_annotations_7 <- sample_annotations_6
+gene_annotations_7 <- gene_annotations_6
+
+gene_annotations_7 <- gene_annotations_7 %>% filter(zero_distance > genes_zero_distance_cutoff)
+data_7 <- data_6[gene_annotations_7$gene_name,]
+
+print(nrow(gene_annotations_6))
+print(nrow(gene_annotations_7))
+```
+
+
+```{r}
+tmp <- calculate_distances(
+  data_7, gene_annotations_7, sample_annotations_7, dataset_name, preprocessing_cell_types, svd_dims = NULL
+)
+gene_annotations_7 <- tmp$gene_annotations
+sample_annotations_7 <- tmp$sample_annotations
+```
+
+```{r}
+plotDistancesToZero(gene_annotations_7, color_plots_by, bins = 50)
+```
+
+```{r}
+plotDistancesToZero(sample_annotations_7, NULL, bins = 50)
+```
+
+# 8. Check the preprocessing results
+```{r echo=FALSE}
+preprocessing_stats <- data.frame(
+  stage = c(
+    "1. Annotate data",
+    "3. Remove unwanted genes",
+    "5. Filter genes by KNN",
+    "6. Filter samples by KNN",
+    "7. Filter genes by distances to zero"
+  ),
+  number_of_genes = c(
+    nrow(gene_annotations),
+    nrow(gene_annotations_3),
+    nrow(gene_annotations_5),
+    nrow(gene_annotations_6),
+    nrow(gene_annotations_7)
+  ),
+  number_of_samples = c(
+    nrow(sample_annotations),
+    nrow(sample_annotations),
+    nrow(sample_annotations_5),
+    nrow(sample_annotations_6),
+    nrow(sample_annotations_7)
+  ),
+  decscription = c(
+    "No filtering",
+    "",
+    paste0("Threshold: ", genes_knn_distance_cutoff),
+    paste0("Threshold: ", samples_knn_distance_cutoff),
+    paste0("Threshold: ", genes_zero_distance_cutoff)
+  )
+)
+preprocessing_stats
+```
+
+```{r}
+lo2_6 <- init_tmp_lo2(data_6, preprocessing_cell_types, dataset_name)
+lo2_6$getSvdProjectionsNew()
+lo2_6$selectInitX()
+plotPointsColored(lo2_6)
+```
+
+```{r}
+lo2 <- init_tmp_lo2(data_7, preprocessing_cell_types, dataset_name)
+lo2$getSvdProjectionsNew()
+lo2$selectInitX()
+plotPointsColored(lo2)
+```
+
+
+# 9. Fit LinSeed2
+```{r}
+fit_lo2 <- function(data, cell_types) {
+  lo2 <- init_tmp_lo2(data, cell_types, dataset_name)
+  lo2$getSvdProjectionsNew()
+  lo2$selectInitX()
+  run_block(lo2, iterations = 15000)
+  show(plotErrors(lo2))
+  show(plotPoints2D(lo2))
+  show(plotSumToOneChange(lo2))
+  show(plotNegProportionsChange(lo2))
+  show(plotNegBasisChange(lo2))
+  show(plotAbundance(lo2))
+  lo2
+}
+```
+
+## 3 cell types
+```{r}
+lo2_7_3ct <- fit_lo2(data_7, 3)
+```
+
+```{r}
+lo2_6_3ct <- fit_lo2(data_6, 3)
+```
+
+## Results
+```{r}
+get_basis_column <- function(lo2) {
+  colnames(lo2$full_basis) <- paste0("Cell_type_", 1:lo2$cell_types)
+  toSave <- t(t(lo2$full_basis) / rowSums(t(lo2$full_basis)))
+  toSave <- lo2$getFoldChange(toSave)
+  toSave <- rbind(c(rep(NA,lo2$cell_types),round(apply(lo2$full_proportions,1,mean),4)),toSave)
+  rownames(toSave) <- c("avg_proportions",rownames(lo2$filtered_dataset))
+  toSave
+}
+
+get_cell_type_markers <- function(lo2, top_genes) {
+  cell_types <- lo2$cell_types
+  basis_column <- get_basis_column(lo2)
+  basis_ <- data.frame(basis_column)
+  basis_$gene <- rownames(basis_)
+  basis_ <- basis_[-1,]
+  genesList <- data.frame(genes=rep(" ", cell_types))
+
+  rownames(genesList) <- paste0("Cell_type_",1:cell_types)
+
+  for (ct in 1:cell_types) {
+    row_name <- paste0("Cell.type.", ct)
+    genes <- (basis_ %>% arrange(desc(.data[[row_name]])))[1:top_genes, "gene"]
+    genesList[row_name, "genes"] <- paste0(genes, collapse = " ")
+  }
+  genesList
+}
+```
+
+```{r}
+knitr::kable(get_cell_type_markers(lo2_6_8ct, 100))
+```
