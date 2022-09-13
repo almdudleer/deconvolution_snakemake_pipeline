@@ -206,25 +206,25 @@ run_block <- function(
 }
 
 get_normalized_svd_projections <- function(
-    self,
-    dims = seq_len(3),
-    keep_genes = NULL,
-    keep_samples = NULL,
-    plot = T
+  self,
+  dims = seq_len(3),
+  keep_genes = NULL,
+  keep_samples = NULL,
+  plot = F
 ) {
     if (is.null(keep_genes)) {
         keep_genes <- rownames(self$V_row)
     }
     if (is.null(keep_samples)) {
         keep_samples <- colnames(self$V_row)
-    } 
+    }
     V_row_flt <- self$V_row[
-        rownames(self$V_row) %in% keep_genes,
-        colnames(self$V_row) %in% keep_samples
+      rownames(self$V_row) %in% keep_genes,
+      colnames(self$V_row) %in% keep_samples
     ]
     V_column_flt <- self$V_column[
-        rownames(self$V_column) %in% keep_genes,
-        colnames(self$V_column) %in% keep_samples
+      rownames(self$V_column) %in% keep_genes,
+      colnames(self$V_column) %in% keep_samples
     ]
     svd_ <- svd(V_row_flt)
     if (plot) {
@@ -237,11 +237,13 @@ get_normalized_svd_projections <- function(
 
     projOmega <- as.data.frame(t(S %*% V_column_flt))[, seq_len(length(dims))]
     colnames(projOmega) <- paste0("dim_", dims)
-    
+
     projX <- as.data.frame(V_row_flt %*% t(R))[, seq_len(length(dims))]
     colnames(projX) <- paste0("dim_", dims)
-    
-    list(projX, projOmega)
+
+    # X — genes x dimensions
+    # Omega — samples x dimensions
+    list(projX = projX, projOmega = projOmega)
 }
 
 calc_mad_cutoff <- function(lo2, samples = T, k = 2) {

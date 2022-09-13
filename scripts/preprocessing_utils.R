@@ -1,39 +1,5 @@
 library(patchwork)
 
-get_normalized_svd_projections <- function(
-  self,
-  dims,
-  keep_genes = NULL,
-  keep_samples = NULL
-) {
-  if (is.null(keep_genes)) {
-    keep_genes <- rownames(self$V_row)
-  }
-  if (is.null(keep_samples)) {
-    keep_samples <- colnames(self$V_row)
-  }
-  V_row_flt <- self$V_row[
-    rownames(self$V_row) %in% keep_genes,
-    colnames(self$V_row) %in% keep_samples
-  ]
-  V_column_flt <- self$V_column[
-    rownames(self$V_column) %in% keep_genes,
-    colnames(self$V_column) %in% keep_samples
-  ]
-  svd_ <- svd(V_row_flt)
-  S <- t(svd_$u[, dims])
-  R <- t(svd_$v[, dims])
-  S[1,] <- -S[1,]
-  R[1,] <- -R[1,]
-  projOmega <- as.data.frame(t(S %*% V_column_flt))[, seq_len(length(dims))]
-  colnames(projOmega) <- paste0("dim_", dims)
-  projX <- as.data.frame(V_row_flt %*% t(R))[, seq_len(length(dims))]
-  colnames(projX) <- paste0("dim_", dims)
-  # X — genes x dimensions
-  # Omega — samples x dimensions
-  list(projX=projX, projOmega=projOmega)
-}
-
 filterZeroMAD <- function(dataset) {
   mad_ <- apply(dataset, 1, mad)
   dataset[mad_ > 0,]
@@ -113,9 +79,9 @@ createGeneAnnotations <- function(data, sim = F) {
   annotations <- data.frame(gene_name = rownames(data))
   annotations$RPLS <- grepl('^RPL|^RPS', annotations$gene_name)
   genes_annotation_lists <- list(
-    HK = "../datasets/gene_annotation_lists/HK.txt",
-    CC = "../datasets/gene_annotation_lists/CC.txt",
-    CODING = "../datasets/gene_annotation_lists/CODING.txt"
+    HK = "datasets/gene_annotation_lists/HK.txt",
+    CC = "datasets/gene_annotation_lists/CC.txt",
+    CODING = "datasets/gene_annotation_lists/CODING.txt"
   )
   for (name in names(genes_annotation_lists)) {
     path <- genes_annotation_lists[[name]]

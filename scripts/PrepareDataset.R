@@ -3,43 +3,13 @@ options(rcpp.cache.dir = snakemake@config[["rcpp_cache_dir"]])
 
 source("scripts/SinkhornNNLSLinseedC.R")
 source("scripts/PreprocessingPlots.R")
+source("scripts/preprocessing_utils.R")
+source("scripts/linseed2_utils.R")
 sourceCpp("scripts/pipeline.cpp")
 
 filterZeroMAD <- function(dataset) {
   mad_ <- apply(dataset, 1, mad)
   dataset[mad_ > 0,]
-}
-
-get_normalized_svd_projections <- function(
-    self,
-    dims,
-    keep_genes = NULL,
-    keep_samples = NULL
-) {
-    if (is.null(keep_genes)) {
-        keep_genes <- rownames(self$V_row)
-    }
-    if (is.null(keep_samples)) {
-        keep_samples <- colnames(self$V_row)
-    }
-    V_row_flt <- self$V_row[
-        rownames(self$V_row) %in% keep_genes,
-        colnames(self$V_row) %in% keep_samples
-    ]
-    V_column_flt <- self$V_column[
-        rownames(self$V_column) %in% keep_genes,
-        colnames(self$V_column) %in% keep_samples
-    ]
-    svd_ <- svd(V_row_flt)
-    S <- t(svd_$u[, dims])
-    R <- t(svd_$v[, dims])
-    S[1,] <- -S[1,]
-    R[1,] <- -R[1,]
-    projOmega <- as.data.frame(t(S %*% V_column_flt))[, seq_len(length(dims))]
-    colnames(projOmega) <- paste0("dim_", dims)
-    projX <- as.data.frame(V_row_flt %*% t(R))[, seq_len(length(dims))]
-    colnames(projX) <- paste0("dim_", dims)
-    list(projX, projOmega)
 }
 
 calculate_knn_cutoff <- function(self, k_neighbours = 20, svd_dims = NULL) {
