@@ -266,10 +266,12 @@ lo2_6_3ct <- fit_lo2(data_6, 3)
 ## Results
 ```{r}
 get_basis_column <- function(lo2) {
-  colnames(lo2$full_basis) <- paste0("Cell_type_", 1:lo2$cell_types)
+  ct_names <- paste0("Cell_type_", 1:lo2$cell_types)
+  colnames(lo2$full_basis) <- ct_names
+  rownames(lo2$full_proportions) <- ct_names
   toSave <- t(t(lo2$full_basis) / rowSums(t(lo2$full_basis)))
   toSave <- lo2$getFoldChange(toSave)
-  toSave <- rbind(c(rep(NA,lo2$cell_types),round(apply(lo2$full_proportions,1,mean),4)),toSave)
+  toSave <- rbind(c(rep(NA,lo2$cell_types), round(apply(lo2$full_proportions,1,mean),4)),toSave)
   rownames(toSave) <- c("avg_proportions",rownames(lo2$filtered_dataset))
   toSave
 }
@@ -281,18 +283,33 @@ get_cell_type_markers <- function(lo2, top_genes) {
   basis_$gene <- rownames(basis_)
   basis_ <- basis_[-1,]
   genesList <- data.frame(genes=rep(" ", cell_types))
-
-  rownames(genesList) <- paste0("Cell_type_",1:cell_types)
+  rownames(genesList) <- paste0("Cell_type_", 1:cell_types)
 
   for (ct in 1:cell_types) {
-    row_name <- paste0("Cell.type.", ct)
+    row_name <- paste0("Cell_type_", ct)
     genes <- (basis_ %>% arrange(desc(.data[[row_name]])))[1:top_genes, "gene"]
     genesList[row_name, "genes"] <- paste0(genes, collapse = " ")
   }
   genesList
 }
+
+markers_6_3ct <- get_cell_type_markers(lo2_6_3ct, 30)
+markers_7_3ct <- get_cell_type_markers(lo2_6_3ct, 30)
 ```
 
 ```{r}
-knitr::kable(get_cell_type_markers(lo2_6_8ct, 100))
+knitr::kable(markers_6_3ct)
 ```
+
+```{r}
+knitr::kable(markers_7_3ct)
+```
+
+```{r}
+plotPointsColored(lo2_6_3ct, points="current", highlight_genes = unlist(lapply(markers_6_3ct$genes, function(x) strsplit(x, " ")[[1]])))
+```
+
+```{r}
+plotPointsColored(lo2_7_3ct, points="current", highlight_genes = unlist(lapply(markers_7_3ct$genes, function(x) strsplit(x, " ")[[1]])))
+```
+
