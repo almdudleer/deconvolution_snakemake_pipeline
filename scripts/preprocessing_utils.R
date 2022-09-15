@@ -27,52 +27,60 @@ calculate_zero_distances <- function(data) {
   sqrt(rowSums(data^2))
 }
 
-plotDistancesToZero <- function(annotations, col, zd_thresholds = NULL, knnd_thresholds = NULL, bins = 300) {
-  # Normalize
-  d0_distr <- ggplot(
-    annotations,
-    aes_string(x = "zero_distance", fill = col)
-  ) +
-    geom_histogram(bins = bins, aes(y = (..count..)/sum(..count..))) +
-    geom_vline(xintercept=zd_thresholds, colour = "red") +
-    ylab("frequency") +
-    ggtitle("Zero distance distribution")
-
-  dknn_distr <- ggplot(
-    annotations,
-    aes_string(x = "knn_distance", fill = col)
-  ) +
-    geom_histogram(bins = bins, aes(y = (..count..)/sum(..count..))) +
-    geom_vline(xintercept=knnd_thresholds, colour = "red") +
-    ylab(NULL) +
-    ggtitle("KNN distance distribution")
-  
-  if (!is.null(col)) {
-    toPlot2 <- annotations[order(annotations[,col]),]
-  } else {
-    toPlot2 <- annotations
+plotDistancesToZero <- function(
+  annotations,
+  col = NULL,
+  thresholds = list(
+    zero_distance = NULL,
+    knn_distance = NULL,
+    plane_distance = NULL
+  ),
+  bins = 200,
+  highlight_items = NULL
+) {
+  columns <- c("knn_distance", "zero_distance", "plane_distance")
+  if (!is.null(highlight_items)) {
+    annotations$highlight <- highlight_items
+    col <- "highlight"
   }
-  
-  d0_vs_dknn <- ggplot(
-    toPlot2,
-    aes_string(x = "knn_distance", y = "zero_distance", col = col)
-  ) +
-    geom_hline(yintercept=zd_thresholds, colour = "red") +
-    geom_vline(xintercept=knnd_thresholds, colour = "red") +
-    geom_point(size = 0.1) +
-    ylab(NULL) +
-    ggtitle("Zero distance vs KNN distance")
 
-  d0_sorted <- ggplot(
-    annotations[order(annotations$zero_distance),],
-    aes_string(x = 1:nrow(annotations), y = "zero_distance", col = col)
-  ) +
-    geom_hline(yintercept=zd_thresholds, colour = "red") +
-    geom_point(size = 0.1) +
-    xlab("order") +
-    ggtitle("Items sorted by zero distance")
+  distr_plots <- lapply(columns, function(colname) {
+    ggplot(
+      annotations,
+      aes_string(x = colname, fill = col)
+    ) +
+      geom_histogram(bins = bins, aes(y = (..count..)/sum(..count..))) +
+      geom_vline(xintercept=thresholds[[colname]], colour = "red") +
+      ylab("frequency")
+  })
 
-  d0_distr + dknn_distr + d0_sorted + d0_vs_dknn + plot_layout(guides = "collect")
+  sorted_plots <- lapply(columns, function(colname) {
+    ggplot(
+      annotations[order(annotations[, colname]),],
+      aes_string(x = 1:nrow(annotations), y = colname, col = col)
+    ) +
+      geom_hline(yintercept=thresholds[[colname]], colour = "red") +
+      geom_point(size = 0.1) +
+      xlab("order")
+  })
+
+  if (!is.null(col)) {
+    arranged_annotations <- annotations[order(annotations[, col]),]
+  } else {
+    arranged_annotations <- annotations
+  }
+
+  vs_plots <- apply(combn(columns, 2), 2, function(colnames) {
+    ggplot(
+      arranged_annotations,
+      aes_string(x = colnames[[1]], y = colnames[[2]], col = col)
+    ) +
+      geom_vline(xintercept=thresholds[[colnames[[1]]]], colour = "red") +
+      geom_hline(yintercept=thresholds[[colnames[[2]]]], colour = "red") +
+      geom_point(size = 0.1)
+  })
+
+  wrap_plots(c(distr_plots, sorted_plots, vs_plots), nrow = 3, ncol = 3, guides = "collect")
 }
 
 createGeneAnnotations <- function(data, sim = F) {
@@ -81,7 +89,7 @@ createGeneAnnotations <- function(data, sim = F) {
   genes_annotation_lists <- list(
     HK = "datasets/gene_annotation_lists/HK.txt",
     CC = "datasets/gene_annotation_lists/CC.txt",
-    CODING = "datasets/gene_annotation_lists/CODING.txt"
+    CODING = "datasets/gene_annotation_lists/CODING_ENSEMBL.txt"
   )
   for (name in names(genes_annotation_lists)) {
     path <- genes_annotation_lists[[name]]
@@ -111,14 +119,19 @@ init_tmp_lo2 <- function(data, cell_types, dataset_name) {
 
 # TODO: replace with list, then, with ExpressionSet or our own object
 calculate_distances <- function(data, gene_annotations, sample_annotations, dataset_name, cell_types, svd_dims = 20) {
+  new_gene_annotations <- gene_annotations
+  new_sample_annotations <- sample_annotations
+
   lo2 <- init_tmp_lo2(data, cell_types, dataset_name)
+  lo2$getSvdProjectionsNew()
+  lo2$calculateDistances()
+
+  new_gene_annotations$plane_distance <- lo2$distance_genes[new_gene_annotations$gene_name]
+  new_sample_annotations$plane_distance <- lo2$distance_samples[new_sample_annotations$sample_name]
 
   proj <- get_normalized_svd_projections(lo2, 1:cell_types)
   projected_genes <- proj$projX[, 2:cell_types]
   projected_samples <- proj$projOmega[, 2:cell_types]
-
-  new_gene_annotations <- gene_annotations
-  new_sample_annotations <- sample_annotations
 
   new_gene_annotations$knn_distance <- calculate_knn_distances(lo2, 20, svd_dims)[new_gene_annotations$gene_name]
   new_gene_annotations$zero_distance <- calculate_zero_distances(projected_genes)[new_gene_annotations$gene_name]

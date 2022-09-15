@@ -64,7 +64,7 @@ sample_annotations_4 <- tmp$sample_annotations
 
 ### Genes
 ```{r}
-plotDistancesToZero(gene_annotations_4, color_plots_by, bins = 50)
+plotDistancesToZero(gene_annotations_4, color_plots_by, bins = 80)
 ```
 
 ### Samples
@@ -74,8 +74,8 @@ plotDistancesToZero(sample_annotations_4, NULL, bins = 50)
 
 # 5. Filter genes by KNN
 ```{r}
-genes_knn_distance_cutoff = 0.25
-plotDistancesToZero(gene_annotations_4, color_plots_by, knnd_thresholds = genes_knn_distance_cutoff, bins = 50)
+genes_knn_distance_cutoff = 0.005
+plotDistancesToZero(gene_annotations_4, color_plots_by, thresholds = list(knn_distance = genes_knn_distance_cutoff), bins = 50)
 ```
 
 ```{r}
@@ -94,7 +94,7 @@ sample_annotations_5 <- tmp$sample_annotations
 ```
 
 ```{r}
-plotDistancesToZero(gene_annotations_5, color_plots_by, knnd_thresholds = genes_knn_distance_cutoff, bins=50)
+plotDistancesToZero(gene_annotations_5, color_plots_by, thresholds = list(knn_distance = genes_knn_distance_cutoff), bins=50)
 ```
 
 ```{r}
@@ -103,8 +103,8 @@ plotDistancesToZero(sample_annotations_5, NULL, bins = 50)
 
 # 6. Filter samples by KNN
 ```{r}
-samples_knn_distance_cutoff = 0.685
-plotDistancesToZero(sample_annotations_5, NULL, knnd_thresholds = samples_knn_distance_cutoff, bins = 50)
+samples_knn_distance_cutoff <- 0.685
+plotDistancesToZero(sample_annotations_5, NULL, thresholds = list(knn_distance = samples_knn_distance_cutoff), bins = 50)
 ```
 
 ```{r}
@@ -128,13 +128,13 @@ plotDistancesToZero(gene_annotations_6, color_plots_by, bins = 50)
 ```
 
 ```{r}
-plotDistancesToZero(sample_annotations_6, NULL, knnd_thresholds = samples_knn_distance_cutoff, bins = 50)
+plotDistancesToZero(sample_annotations_6, NULL, thresholds = list(knn_distance = samples_knn_distance_cutoff), bins = 50)
 ```
 
 # 7. Filter genes by distance to zero
 ```{r}
 genes_zero_distance_cutoff = 0.003
-plotDistancesToZero(gene_annotations_6, color_plots_by, zd_thresholds = genes_zero_distance_cutoff, bins = 50)
+plotDistancesToZero(gene_annotations_6, color_plots_by, thresholds = list(zero_distance = genes_zero_distance_cutoff), bins = 50)
 ```
 
 ```{r}
